@@ -10,7 +10,7 @@ default = ["tls"]
 # hyper-rustls does not support IP hosts (like https://192.168.1.2) which are
 # very common for IP cameras. So we can use only native-tls for now.
 # https://github.com/ctz/hyper-rustls/issues/56
-tls = ["reqwest/native-tls"]
+tls = ["reqwest/rustls-tls"]
 
 [dependencies]
 async-recursion = "0.3.1"
@@ -43,3 +43,4 @@ futures-util = "0.3.8"
 structopt = "0.3.21"
 tokio = { version = "1.0.1", features = ["full"] }
 tracing-subscriber = "0.2.20"
+env_logger = "0.10"

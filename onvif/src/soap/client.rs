@@ -82,7 +82,7 @@ impl ClientBuilder {
             // very common for IP cameras. So we can use only native-tls for now.
             // https://github.com/ctz/hyper-rustls/issues/56
             client_builder = client_builder
-                .use_native_tls()
+                .use_rustls_tls()
                 .danger_accept_invalid_certs(true);
         }
 
