@@ -169,8 +169,10 @@ async fn main() {
     const MAX_CONCURRENT_JUMPERS: usize = 100;
     env_logger::init();
 
+    let listen_addr = std::net::Ipv4Addr::from_str(Args::from_args().listen_addr.as_str()).unwrap();
+
     if let Ok(devices_stream) = discovery::DiscoveryBuilder::default()
-        .listen_address(std::net::IpAddr::from_str(Args::from_args().listen_addr.as_str()).unwrap())
+        .listen_address(listen_addr.into())
         .run()
         .await
     {
@@ -182,7 +184,20 @@ async fn main() {
                 let uri = addr
                     .urls
                     .into_iter()
-                    .find(|u| u.as_str().starts_with("https"))
+                    .find(|u| {
+                        u.scheme() == "https"
+                            && u.host_str()
+                                .map(|h| {
+                                    let host_ip = std::net::Ipv4Addr::from_str(h).unwrap();
+                                    let mut oct = host_ip.octets();
+                                    let mut listen_oct = listen_addr.octets();
+                                    oct[3] = 0;
+                                    listen_oct[3] = 0;
+
+                                    oct.eq(&listen_oct)
+                                })
+                                .unwrap_or_default()
+                    })
                     .expect("device does not have any https urls?");
 
                 let uri = uri
