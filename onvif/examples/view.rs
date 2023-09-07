@@ -189,12 +189,7 @@ async fn main() {
                             && u.host_str()
                                 .map(|h| {
                                     let host_ip = std::net::Ipv4Addr::from_str(h).unwrap();
-                                    let mut oct = host_ip.octets();
-                                    let mut listen_oct = listen_addr.octets();
-                                    oct[3] = 0;
-                                    listen_oct[3] = 0;
-
-                                    oct.eq(&listen_oct)
+                                    host_ip.octets()[..3].eq(&listen_addr.octets()[..3])
                                 })
                                 .unwrap_or_default()
                     })
