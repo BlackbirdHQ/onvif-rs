@@ -8,6 +8,10 @@ use schema::{self, transport};
 use structopt::StructOpt;
 use tracing::debug;
 use url::Url;
+use std::fmt;
+
+use env_logger;
+use log;
 
 #[derive(StructOpt, Clone, Debug)]
 #[structopt(name = "view", about = "Factbird View camera discovery tool")]
@@ -102,7 +106,9 @@ impl Clients {
         }
         Ok(out)
     }
+    
 }
+
 
 pub struct VideoSpec {
     encoding: String,
@@ -117,12 +123,15 @@ pub struct StreamSpec {
 }
 
 async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport::Error> {
+    log::info!("Entered get_stream_uris");
     let media_client = clients
         .media
         .as_ref()
         .ok_or_else(|| transport::Error::Other("Client media is not available".into()))?;
+
+    log::info!("Line get_stream_uris: 132");
     let profiles = schema::media::get_profiles(media_client, &Default::default()).await?;
-    debug!("get_profiles response: {:#?}", &profiles);
+    log::info!("get_profiles response: {:#?}", &profiles);
     let requests: Vec<_> = profiles
         .profiles
         .iter()
@@ -137,7 +146,7 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
             },
         })
         .collect();
-
+    log::info!("Line get_stream_uris: 149");
     let responses = futures_util::future::try_join_all(
         requests
             .iter()
@@ -145,8 +154,10 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
     )
     .await?;
 
+    log::info!("Line get_stream_uris: 157");
     let mut streams = vec![];
 
+    log::info!("Line get_stream_uris: 160");
     for (p, resp) in profiles.profiles.iter().zip(responses.iter()) {
         if let Some(ref v) = p.video_encoder_configuration {
             streams.push(StreamSpec {
@@ -160,6 +171,7 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
             });
         }
     }
+    log::info!("Line get_stream_uris: 174");
     Ok(streams)
 }
 
@@ -169,6 +181,10 @@ async fn main() {
     const MAX_CONCURRENT_JUMPERS: usize = 100;
     env_logger::init();
 
+    
+    
+    log::debug!("This is a debug message");
+
     let listen_addr = std::net::Ipv4Addr::from_str(Args::from_args().listen_addr.as_str()).unwrap();
 
     if let Ok(devices_stream) = discovery::DiscoveryBuilder::default()
@@ -176,6 +192,7 @@ async fn main() {
         .run()
         .await
     {
+        log::info!("Entered step 1");
         devices_stream
             .for_each_concurrent(MAX_CONCURRENT_JUMPERS, |addr: Device| async move {
                 let args = Args::from_args();
@@ -199,7 +216,7 @@ async fn main() {
                     .as_str()
                     .strip_suffix(service_path.as_str())
                     .unwrap_or_else(|| uri.as_str());
-
+                log::info!("Entered step 2");
                 let Ok(clients) = Clients::new(&ClientArgs {
                     username: args.username.clone(),
                     password: args.password.clone(),
@@ -209,8 +226,10 @@ async fn main() {
                 .await else {
                     return;
                 };
-
+                
+                
                 if let Ok(streams) = get_stream_uris(&clients).await {
+                    log::info!("Entered step 3");
                     for stream in streams
                         .iter()
                         .filter(|s| s.video.encoding.to_ascii_lowercase().as_str() == "h264")
@@ -222,6 +241,9 @@ async fn main() {
                             stream.media_uri.strip_prefix("rtsp://").unwrap()
                         );
                     }
+                }
+                else {
+                    log::info!("Line get_stream_uris: 237 failed");
                 }
             })
             .await;

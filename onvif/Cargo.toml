@@ -36,11 +36,12 @@ xsd-macro-utils = { git = "https://github.com/lumeohq/xsd-parser-rs", rev = "7f3
 xsd-types = { git = "https://github.com/lumeohq/xsd-parser-rs", rev = "7f3d433" }
 yaserde = "0.7.1"
 yaserde_derive = "0.7.1"
+env_logger = "0.10"
+log = "0.4.0"
 
 [dev-dependencies]
 dotenv = "0.15.0"
 futures-util = "0.3.8"
 structopt = "0.3.21"
 tokio = { version = "1.0.1", features = ["full"] }
-tracing-subscriber = "0.2.20"
-env_logger = "0.10"
+tracing-subscriber = { version = "0.3.17", features = ["env-filter"] }

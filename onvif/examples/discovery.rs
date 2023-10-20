@@ -1,5 +1,6 @@
 extern crate onvif;
 use onvif::discovery;
+use std::str::FromStr;
 
 #[tokio::main]
 async fn main() {
@@ -9,7 +10,7 @@ async fn main() {
     use futures_util::stream::StreamExt;
     const MAX_CONCURRENT_JUMPERS: usize = 100;
 
-    discovery::DiscoveryBuilder::default()
+    discovery::DiscoveryBuilder::default().listen_address(std::net::IpAddr::from_str("192.168.254.1").unwrap())
         .run()
         .await
         .unwrap()
