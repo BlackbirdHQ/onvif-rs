@@ -129,7 +129,7 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
         .as_ref()
         .ok_or_else(|| transport::Error::Other("Client media is not available".into()))?;
 
-    log::info!("Line get_stream_uris: 132");
+    log::info!("Getting all available profiles");
     let profiles = schema::media::get_profiles(media_client, &Default::default()).await?;
     // log::info!("get_profiles response: {:#?}", &profiles);
     let requests: Vec<_> = profiles
@@ -146,14 +146,8 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
             },
         })
         .collect();
-    log::info!("Line get_stream_uris: 149");
-    // let responses = futures_util::future::try_join_all(
-    //     requests
-    //         .iter()
-    //         .map(|r| schema::media::get_stream_uri(media_client, r)),
-    // )
-    // .await?;
 
+    log::info!("Getting streamUri per profile");
     let mut responses = Vec::new(); // Store responses in a Vec
     for (i, request) in requests.iter().enumerate() {
         log::info!("Sending request #{}: {:?}", i, request);
@@ -168,10 +162,8 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
         
     }
 
-    log::info!("Line get_stream_uris: 157");
+    log::info!("Copying streamUri to streams");
     let mut streams = vec![];
-
-    log::info!("Line get_stream_uris: 160");
     for (p, resp) in profiles.profiles.iter().zip(responses.iter()) {
         if let Some(ref v) = p.video_encoder_configuration {
             streams.push(StreamSpec {
@@ -185,7 +177,6 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
             });
         }
     }
-    log::info!("Line get_stream_uris: 174");
     Ok(streams)
 }
 
@@ -241,7 +232,7 @@ async fn main() {
                 
                 log::info!("Getting streamUri's");
                 if let Ok(streams) = get_stream_uris(&clients).await {
-                    
+
                     log::info!("Filtering for h264 encoding");
                     for stream in streams
                         .iter()
