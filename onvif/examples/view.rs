@@ -131,7 +131,7 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
 
     log::info!("Line get_stream_uris: 132");
     let profiles = schema::media::get_profiles(media_client, &Default::default()).await?;
-    log::info!("get_profiles response: {:#?}", &profiles);
+    // log::info!("get_profiles response: {:#?}", &profiles);
     let requests: Vec<_> = profiles
         .profiles
         .iter()
@@ -147,12 +147,26 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
         })
         .collect();
     log::info!("Line get_stream_uris: 149");
-    let responses = futures_util::future::try_join_all(
-        requests
-            .iter()
-            .map(|r| schema::media::get_stream_uri(media_client, r)),
-    )
-    .await?;
+    // let responses = futures_util::future::try_join_all(
+    //     requests
+    //         .iter()
+    //         .map(|r| schema::media::get_stream_uri(media_client, r)),
+    // )
+    // .await?;
+
+    let mut responses = Vec::new(); // Store responses in a Vec
+    for (i, request) in requests.iter().enumerate() {
+        log::info!("Sending request #{}: {:?}", i, request);
+        let response = schema::media::get_stream_uri(media_client, request).await;
+        match &response {
+            Ok(_) => {
+                log::info!("Request #{} succeeded", i);
+                responses.push(response.unwrap());
+            } 
+            Err(err) => log::error!("Request #{} failed with error: {:?}", i, err),
+        }
+        
+    }
 
     log::info!("Line get_stream_uris: 157");
     let mut streams = vec![];
@@ -181,9 +195,6 @@ async fn main() {
     const MAX_CONCURRENT_JUMPERS: usize = 100;
     env_logger::init();
 
-    
-    
-    log::debug!("This is a debug message");
 
     let listen_addr = std::net::Ipv4Addr::from_str(Args::from_args().listen_addr.as_str()).unwrap();
 
@@ -192,7 +203,7 @@ async fn main() {
         .run()
         .await
     {
-        log::info!("Entered step 1");
+        log::info!("Found device. Getting links ..");
         devices_stream
             .for_each_concurrent(MAX_CONCURRENT_JUMPERS, |addr: Device| async move {
                 let args = Args::from_args();
@@ -216,7 +227,8 @@ async fn main() {
                     .as_str()
                     .strip_suffix(service_path.as_str())
                     .unwrap_or_else(|| uri.as_str());
-                log::info!("Entered step 2");
+
+                log::info!("Creating separate Clients");
                 let Ok(clients) = Clients::new(&ClientArgs {
                     username: args.username.clone(),
                     password: args.password.clone(),
@@ -227,9 +239,10 @@ async fn main() {
                     return;
                 };
                 
-                
+                log::info!("Getting streamUri's");
                 if let Ok(streams) = get_stream_uris(&clients).await {
-                    log::info!("Entered step 3");
+                    
+                    log::info!("Filtering for h264 encoding");
                     for stream in streams
                         .iter()
                         .filter(|s| s.video.encoding.to_ascii_lowercase().as_str() == "h264")
@@ -243,9 +256,13 @@ async fn main() {
                     }
                 }
                 else {
-                    log::info!("Line get_stream_uris: 237 failed");
+                    log::info!("Failed to get any streamUri'");
                 }
             })
             .await;
+    }
+    else
+    {
+        log::info!("Didn't find any devices.");
     }
 }
