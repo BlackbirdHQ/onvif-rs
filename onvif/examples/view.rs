@@ -1,4 +1,4 @@
-use std::str::FromStr;
+use std::{str::FromStr, collections::HashMap};
 
 use onvif::{
     discovery::{self, Device},
@@ -131,7 +131,7 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
 
     log::info!("Getting all available profiles");
     let profiles = schema::media::get_profiles(media_client, &Default::default()).await?;
-    // log::info!("get_profiles response: {:#?}", &profiles);
+    log::debug!("get_profiles response: {:#?}", &profiles);
     let requests: Vec<_> = profiles
         .profiles
         .iter()
@@ -148,33 +148,43 @@ async fn get_stream_uris(clients: &Clients) -> Result<Vec<StreamSpec>, transport
         .collect();
 
     log::info!("Getting streamUri per profile");
-    let mut responses = Vec::new(); // Store responses in a Vec
+    let mut responses = HashMap::new(); // Store responses in a Vec
     for (i, request) in requests.iter().enumerate() {
-        log::info!("Sending request #{}: {:?}", i, request);
         let response = schema::media::get_stream_uri(media_client, request).await;
         match &response {
             Ok(_) => {
-                log::info!("Request #{} succeeded", i);
-                responses.push(response.unwrap());
+                log::info!("Request #{} {} succeeded", i, request.profile_token);
+                responses.insert(i, response.unwrap());
             } 
-            Err(err) => log::error!("Request #{} failed with error: {:?}", i, err),
+            Err(err) => log::error!("Request #{} {} failed with error: {:?}", i, request.profile_token,err),
         }
         
     }
 
     log::info!("Copying streamUri to streams");
     let mut streams = vec![];
-    for (p, resp) in profiles.profiles.iter().zip(responses.iter()) {
+    for (i, p) in profiles.profiles.iter().enumerate() {
         if let Some(ref v) = p.video_encoder_configuration {
-            streams.push(StreamSpec {
-                name: p.name.0.clone(),
-                media_uri: resp.media_uri.uri.clone(),
-                video: VideoSpec {
-                    encoding: format!("{:?}", v.encoding),
-                    width: v.resolution.width,
-                    height: v.resolution.height,
-                },
-            });
+            if let Some (resp) = responses.get(&i) {
+                log::info!("Stream {}: {} was successfully added.", i, p.name);
+
+                streams.push(StreamSpec {
+                    name: p.name.0.clone(),
+                    media_uri: resp.media_uri.uri.clone(),
+                    video: VideoSpec {
+                        encoding: format!("{:?}", v.encoding),
+                        width: v.resolution.width,
+                        height: v.resolution.height,
+                    },
+                });
+            }
+            else {
+                log::info!("Stream {}: {} was filtered out because it has no media_uri.", i, p.name);
+            }
+            // let media_uri = responses.get(&i).map_or("None", |resp| resp.media_uri.uri.as_str()); 
+        }
+        else {
+            log::info!("Stream {}: {} was filtered out because it has no video encoder.", i, p.name);
         }
     }
     Ok(streams)
@@ -238,12 +248,20 @@ async fn main() {
                         .iter()
                         .filter(|s| s.video.encoding.to_ascii_lowercase().as_str() == "h264")
                     {
+                        log::info!("Name: {} \nMedia_uri: {} \nVideoencoding: {} with width {} and height {}.", 
+                            stream.name, 
+                            stream.media_uri, 
+                            stream.video.encoding,
+                            stream.video.width,
+                            stream.video.height);
+                        
                         println!(
                             "rtsp://{}:{}@{}",
                             args.username.clone().unwrap(),
                             args.password.clone().unwrap(),
                             stream.media_uri.strip_prefix("rtsp://").unwrap()
                         );
+                        log::info!("");
                     }
                 }
                 else {
