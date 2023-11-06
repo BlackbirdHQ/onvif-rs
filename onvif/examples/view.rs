@@ -248,9 +248,9 @@ async fn main() {
                         .iter()
                         .filter(|s| s.video.encoding.to_ascii_lowercase().as_str() == "h264")
                     {
-                        log::info!("Name: {} \nMedia_uri: {} \nVideoencoding: {} with width {} and height {}.", 
-                            stream.name, 
-                            stream.media_uri, 
+                        log::info!("Name: {} ", stream.name);
+                        log::info!("Media_uri: {}", stream.media_uri);
+                        log::info!("Videoencoding: {} with width {} and height {}. Link:",
                             stream.video.encoding,
                             stream.video.width,
                             stream.video.height);
